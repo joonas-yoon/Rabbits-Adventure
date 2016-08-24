@@ -20,6 +20,7 @@ playGame.prototype = {
     player_facing: 'left',
     facingFrame: ['down', 'left', 'right', 'up'],
     playing: false,
+    deathTile: [26, 27, 51, 52, 76, 101, 126],
     
     
     preload: function(){
@@ -40,10 +41,9 @@ playGame.prototype = {
         this.map.addTilesetImage('ground_1x1');
         // 충돌이 일어나는 타일셋 프레임 범위
         this.map.setCollisionBetween(1, 150);
-        var deathTile = [25, 26, 50, 51, 75, 100, 125];
-        for(var i in deathTile){
+        for(var i in this.deathTile){
             //  해당 ID인 타일과 충돌이 일어나면 endGame을 호출함
-            this.map.setTileIndexCallback(deathTile[i], this.endGame, this);
+            this.map.setTileIndexCallback(this.deathTile[i], this.endGame, this);
         }
     
         this.tilesLayer = this.map.createLayer('Tile Layer');
@@ -91,7 +91,6 @@ playGame.prototype = {
     update: function(){
         //  Collide the player and the stars with the platforms
         game.physics.arcade.collide(this.player, this.wallsLayer);
-        // 
         game.physics.arcade.overlap(this.player, this.carrots, this.collectCarrots, null, this);
         
         //  Reset the players velocity (movement)
@@ -149,25 +148,26 @@ playGame.prototype = {
         var curTileY = this.tilesLayer.getTileY(this.player.body.center.y);
         
         // 플레이어가 다른 타일로 이동함
-        if( this.player_tileX !== curTileX || this.player_tileY !== curTileY )
+        if( this.player.tileX !== curTileX || this.player.tileY !== curTileY )
         {
             // 이전에 있던 타일을 삭제, 닿으면 죽게 바꿈
-            this.changeToDeathZone(this.player_tileX, this.player_tileY);
+            if( this.player.tileX != null && this.player.tileY != null ){
+                this.changeToDeathZone(this.player.tileX, this.player.tileY);
+            }
             
             // 플레이어의 위치를 갱신
-            this.player_tileX = curTileX;
-            this.player_tileY = curTileY;
+            this.player.tileX = curTileX;
+            this.player.tileY = curTileY;
             
-            this.marker.x = this.player_tileX * 32;
-            this.marker.y = this.player_tileY * 32;
+            this.marker.x = this.player.tileX * 32;
+            this.marker.y = this.player.tileY * 32;
         }
         
-        this.checkDeathPosition(this.player_tileX, this.player_tileY);
+        this.checkDeathPosition(this.player.tileX, this.player.tileY);
     },
     checkDeathPosition: function(tileX, tileY){
         var currentTile = this.map.getTile(tileX, tileY, this.tilesLayer);
-        // console.log(currentTile);
-        if(currentTile.index == 26){
+        if(this.deathTile.indexOf(currentTile.index) !== -1){
             this.endGame();
         }
     },
