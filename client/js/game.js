@@ -20,57 +20,34 @@ playGame.prototype = {
     player_facing: 'left',
     facingFrame: ['down', 'left', 'right', 'up'],
     playing: false,
+    score: 0,
     deathTile: [26, 27, 51, 52, 76, 101, 126],
+    HUD: {
+        text: {},
+        graphics: {}
+    },
     
+    stageInfo: {},
     
     preload: function(){
-        game.load.tilemap('map', 'assets/tilemaps/maps/test.json', null, Phaser.Tilemap.TILED_JSON);
         game.load.image('ground_1x1', 'assets/tilemaps/tiles/ground_1x1.png');
         game.load.image('carrot_32x32', 'assets/carrot_32x32.png');
         game.load.spritesheet('rabbit', 'assets/rabbit.png', 32, 32);
         game.load.spritesheet('ground_sprite', 'assets/tilemaps/tiles/ground_1x1.png', 32, 32);
+    },
+    flushLocalData: function(){
+        this.score = 0;
+        this.playing = false;
+        this.player_facing = 'left';
     },
     create: function(){
         game.physics.startSystem(Phaser.Physics.ARCADE);
         
         var backColor = bgColors[game.rnd.between(0, bgColors.length - 1)];
         game.stage.backgroundColor = backColor;
-        
-        this.map = game.add.tilemap('map');
-    
-        this.map.addTilesetImage('ground_1x1');
-        // 충돌이 일어나는 타일셋 프레임 범위
-        this.map.setCollisionBetween(1, 150);
-        for(var i in this.deathTile){
-            //  해당 ID인 타일과 충돌이 일어나면 endGame을 호출함
-            this.map.setTileIndexCallback(this.deathTile[i], this.endGame, this);
-        }
-    
-        this.tilesLayer = this.map.createLayer('Tile Layer');
 
-        this.wallsLayer = this.map.createLayer('Wall Layer');
-    
-        //  Scroll it
-        this.wallsLayer.resizeWorld();
+        this.load_map('stage0');
         
-        // The player and its settings
-        this.player = game.add.sprite(32 * 5 + 1, 32 * 11, 'rabbit');
-    
-        //  We need to enable physics on the player
-        game.physics.arcade.enable(this.player);
-        this.player.body.fixedRotation = true;
-        this.player.body.collideWorldBounds = true;
-        this.player.body.setSize(16, 16, 8, 20);
-    
-        //  Our two animations, walking left and right.
-        this.player.animations.add('down', [1, 0, 1, 2], 10, true);
-        this.player.animations.add('left', [13, 12, 13, 14], 10, true);
-        this.player.animations.add('right', [25, 24, 25, 26], 10, true);
-        this.player.animations.add('up', [37, 36, 37, 38], 10, true);
-        this.player.animations.add('dead', [1, 13, 25, 37], 10, true);
-        
-        game.camera.follow(this.player);
-    
         //  Our controls.
         this.cursors = game.input.keyboard.createCursorKeys();
         
@@ -81,24 +58,24 @@ playGame.prototype = {
         
         this.playing = true;
         
-        // 오브젝트 그룹 추가
-        this.carrots = game.add.group();
-        this.carrots.enableBody = true;
-    
-        //  And now we convert all of the Tiled objects with an ID of 34 into sprites within the coins group
-        this.map.createFromObjects('Carrots', 151, 'carrot_32x32', 0, true, false, this.carrots);
+        // 스코어 텍스트
+        this.HUD.text.score = game.add.text(0, 0, "score: " + this.score, { font: "bold 24px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "right" });
+        this.HUD.text.score.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
     },
     update: function(){
-        //  Collide the player and the stars with the platforms
-        game.physics.arcade.collide(this.player, this.wallsLayer);
-        game.physics.arcade.overlap(this.player, this.carrots, this.collectCarrots, null, this);
+        // console.log(this.player);
+        if( ! this.player ) return;
         
         //  Reset the players velocity (movement)
         this.player.body.velocity.x = 0;
         this.player.body.velocity.y = 0;
         this.player.bringToTop();
-    
+        
         if(this.playing !== true) return;
+        
+        //  Collide the player and the stars with the platforms
+        game.physics.arcade.collide(this.player, this.wallsLayer);
+        game.physics.arcade.overlap(this.player, this.carrots, this.collectCarrots, null, this);
     
         if (this.cursors.left.isDown)
         {
@@ -184,16 +161,105 @@ playGame.prototype = {
                 tile.animations.play('water');
             }, this);
         }, this);
+        
+        this.updateScore(+10, true);
     },
     collectCarrots: function(player, carrot){
-        carrot.kill();
+        this.updateScore(+100, true);
+        
+        carrot.destroy();
+        
+        // 당근을 모두 먹었으면 게임 성공
+        if(this.carrots.children.length === 0){
+            this.clearGame();
+        }
     },
+    updateScore: function(getScore, updateDisplay){
+        this.score += Math.floor(getScore + 0);
+        if(updateDisplay) this.HUD.text.score.text = 'score: ' + this.score;
+    },
+    
+    
+    new_map: function(name){
+        this.map = game.add.tilemap(name);
+    
+        this.map.addTilesetImage('ground_1x1');
+        // 충돌이 일어나는 타일셋 프레임 범위
+        this.map.setCollisionBetween(1, 1000);
+        for(var i in this.deathTile){
+            //  해당 ID인 타일과 충돌이 일어나면 endGame을 호출함
+            this.map.setTileIndexCallback(this.deathTile[i], this.endGame, this);
+        }
+    
+        this.tilesLayer = this.map.createLayer('Tile Layer');
+        this.wallsLayer = this.map.createLayer('Wall Layer');
+        //  Scroll it
+        this.wallsLayer.resizeWorld();
+        
+        // 오브젝트 그룹 추가
+        this.carrots = game.add.group();
+        this.carrots.enableBody = true;
+    
+        //  And now we convert all of the Tiled objects with an ID of 34 into sprites within the coins group
+        this.map.createFromObjects('Carrots', 151, 'carrot_32x32', 0, true, false, this.carrots);
+        
+        this.set_player();
+    },
+    load_map: function(name){
+        if(game.cache.checkTilemapKey(name)) return;
+        
+        game.load.text('stageInfo', 'assets/data/' + name + '.json');
+		game.load.start();
+		game.load.onLoadComplete.addOnce(this.load_map_download, this);
+		
+        console.log('stage Load Map!');
+    },
+    load_map_download: function(){
+        console.log('stage Load Map Download');
+        var jsonData = game.cache.getText('stageInfo');
+        this.stageInfo = JSON.parse(jsonData);
+        // console.log(jsonData);
+        // console.log(this.stageInfo);
+        game.load.tilemap(this.stageInfo.name, 'assets/tilemaps/maps/' + this.stageInfo.tilemap + '.json', null, Phaser.Tilemap.TILED_JSON);
+		//begin the loading process
+		game.load.start();
+		//on complete, call the "load_map_success" function
+		game.load.onLoadComplete.add(this.load_map_success, this);
+    },
+    load_map_success: function(){
+        this.new_map(this.stageInfo.name);
+    },
+    
+    set_player: function(){
+        // The player and its settings
+        var playerTileX = this.stageInfo.starting_point.x, playerTileY = this.stageInfo.starting_point.y;
+        this.player = game.add.sprite(32 * playerTileX + 1, 32 * playerTileY, 'rabbit');
+    
+        //  We need to enable physics on the player
+        game.physics.arcade.enable(this.player);
+        this.player.body.fixedRotation = true;
+        this.player.body.collideWorldBounds = true;
+        this.player.body.setSize(16, 16, 8, 20);
+    
+        //  Our two animations, walking left and right.
+        this.player.animations.add('down', [1, 0, 1, 2], 10, true);
+        this.player.animations.add('left', [13, 12, 13, 14], 10, true);
+        this.player.animations.add('right', [25, 24, 25, 26], 10, true);
+        this.player.animations.add('up', [37, 36, 37, 38], 10, true);
+        this.player.animations.add('dead', [1, 13, 25, 37], 10, true);
+        
+        game.camera.follow(this.player);
+    },
+    
+    
     endGame: function(){
+        // 게임 실패로 인한 종료
+        
         var style = { font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };
     
-        //  The Text is positioned at 0, 100
-        game.add.text(0, 0, "You Die", style);
-        this.playing = false;
+        //  The Text is positioned at 0, 0
+        var text = game.add.text(0, 0, "You Die", style);
+        text.setTextBounds(0, 0, game.width, game.height);
         
         this.player.animations.play("dead");
         game.add.tween(this.player.scale).to({x: 0.5, y: 0.5}, 2400, Phaser.Easing.Cubic.Out, true);
@@ -202,6 +268,18 @@ playGame.prototype = {
             game.state.start("PlayGame");
         }, this);
         
+        this.flushLocalData();
+        
         return false;
+    },
+    clearGame: function(){
+        // 스테이지 클리어
+        
+        this.playing = false;
+        
+        var style = { font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };
+    
+        var text = game.add.text(0, 0, "Game Clear!", style);
+        text.setTextBounds(0, 0, game.width, game.height);
     }
 }
