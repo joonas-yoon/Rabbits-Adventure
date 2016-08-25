@@ -2,7 +2,7 @@
     "name": "stage0",
     "tilemap": "stage0",
     "starting_point": {
-        "x": 2,
-        "y": 11
+        "x": 7,
+        "y": 12
     }
 }

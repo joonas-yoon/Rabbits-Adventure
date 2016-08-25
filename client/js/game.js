@@ -11,7 +11,7 @@ var bgColors = [0x62bd18, 0xff5300, 0xd21034, 0xff475c, 0x8f16b2, 0x588c7e, 0x8c
 window.onload = function() {
     game = new Phaser.Game(1170, 520, Phaser.AUTO, "gameContainer");
     game.state.add("PlayGame", playGame);
-    game.state.start("PlayGame");
+    game.state.start("PlayGame", true, false, 'stage1');
 }
 
 var playGame = function(game){};
@@ -27,8 +27,12 @@ playGame.prototype = {
         graphics: {}
     },
     
+    stageName: '',
     stageInfo: {},
     
+    init: function(name){
+        this.stageName = name;
+    },
     preload: function(){
         game.load.image('ground_1x1', 'assets/tilemaps/tiles/ground_1x1.png');
         game.load.image('carrot_32x32', 'assets/carrot_32x32.png');
@@ -46,7 +50,7 @@ playGame.prototype = {
         var backColor = bgColors[game.rnd.between(0, bgColors.length - 1)];
         game.stage.backgroundColor = backColor;
 
-        this.load_map('stage0');
+        this.load_map(this.stageName);
         
         //  Our controls.
         this.cursors = game.input.keyboard.createCursorKeys();
@@ -59,12 +63,14 @@ playGame.prototype = {
         this.playing = true;
         
         // 스코어 텍스트
-        this.HUD.text.score = game.add.text(0, 0, "score: " + this.score, { font: "bold 24px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "right" });
+        this.HUDLayer = game.add.group();
+        this.HUD.text.score = game.add.text(0, 0, "score: " + this.score, { font: "bold 24px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "right" }, this.HUDLayer);
         this.HUD.text.score.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
     },
     update: function(){
-        // console.log(this.player);
         if( ! this.player ) return;
+        
+        game.world.bringToTop(this.HUDLayer);
         
         //  Reset the players velocity (movement)
         this.player.body.velocity.x = 0;
@@ -212,21 +218,17 @@ playGame.prototype = {
 		game.load.start();
 		game.load.onLoadComplete.addOnce(this.load_map_download, this);
 		
-        console.log('stage Load Map!');
+        console.log('Load Map Data...');
     },
     load_map_download: function(){
-        console.log('stage Load Map Download');
         var jsonData = game.cache.getText('stageInfo');
         this.stageInfo = JSON.parse(jsonData);
-        // console.log(jsonData);
-        // console.log(this.stageInfo);
         game.load.tilemap(this.stageInfo.name, 'assets/tilemaps/maps/' + this.stageInfo.tilemap + '.json', null, Phaser.Tilemap.TILED_JSON);
-		//begin the loading process
 		game.load.start();
-		//on complete, call the "load_map_success" function
 		game.load.onLoadComplete.add(this.load_map_success, this);
     },
     load_map_success: function(){
+        console.log('Success Load Map Data');
         this.new_map(this.stageInfo.name);
     },
     
@@ -265,7 +267,8 @@ playGame.prototype = {
         game.add.tween(this.player.scale).to({x: 0.5, y: 0.5}, 2400, Phaser.Easing.Cubic.Out, true);
         
         game.time.events.add(Phaser.Timer.SECOND * 2, function(){
-            game.state.start("PlayGame");
+            // 현재 게임을 재시작
+            game.state.start("PlayGame", true, false, this.stageName);
         }, this);
         
         this.flushLocalData();
