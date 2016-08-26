@@ -11,7 +11,10 @@ var bgColors = [0x62bd18, 0xff5300, 0xd21034, 0xff475c, 0x8f16b2, 0x588c7e, 0x8c
 window.onload = function() {
     game = new Phaser.Game(1170, 520, Phaser.AUTO, "gameContainer");
     game.state.add("PlayGame", playGame);
-    game.state.start("PlayGame", true, false, 'stage1');
+    game.state.add("GameIntro", gameIntro);
+    game.state.add("LevelSelect", levelSelect);
+    // game.state.start("PlayGame", true, false, 'stage1');
+    game.state.start("GameIntro");
 }
 
 var playGame = function(game){};
@@ -278,7 +281,9 @@ playGame.prototype = {
     clearGame: function(){
         // 스테이지 클리어
         
-        this.playing = false;
+        game.time.events.add(Phaser.Timer.SECOND * 0.1, function(){
+            this.playing = false;
+        }, this);
         
         var style = { font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };
     

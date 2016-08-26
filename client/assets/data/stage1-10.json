@@ -1,0 +1,8 @@
+{
+    "name": "stage1-10",
+    "tilemap": "stage1-10",
+    "starting_point": {
+        "x": 2,
+        "y": 3
+    }
+}
