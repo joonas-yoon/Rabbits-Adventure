@@ -46,6 +46,10 @@ levelSelect.prototype = {
         game.load.spritesheet('button', 'assets/sprites/level_64x64.png', 64, 64);
     },
     create: function(){
+        game.camera.follow(null);
+		game.camera.setPosition(0, 0);
+		game.world.setBounds(0, 0, game.camera.width, game.camera.height);
+		
         this.background = game.add.tileSprite(0, 0, game.width, game.height, 'background');
         
         var titleOffset = 75;
@@ -99,6 +103,7 @@ levelSelect.prototype = {
         game.state.start("GameIntro", false, false);
     },
     startGame: function(button){
+        console.log('play ' + button.stageName);
         game.state.start("PlayGame", true, false, button.stageName);
     }
 }

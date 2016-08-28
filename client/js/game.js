@@ -13,7 +13,8 @@ window.onload = function() {
     game.state.add("PlayGame", playGame);
     game.state.add("GameIntro", gameIntro);
     game.state.add("LevelSelect", levelSelect);
-    // game.state.start("PlayGame", true, false, 'stage1');
+    
+    // game.state.start("PlayGame", true, false, 'stage1-10');
     game.state.start("GameIntro");
 }
 
@@ -41,13 +42,22 @@ playGame.prototype = {
         game.load.image('carrot_32x32', 'assets/carrot_32x32.png');
         game.load.spritesheet('rabbit', 'assets/rabbit.png', 32, 32);
         game.load.spritesheet('ground_sprite', 'assets/tilemaps/tiles/ground_1x1.png', 32, 32);
+        
+        game.load.spritesheet('button', 'assets/buttons/button_sprite_sheet.png', 193, 71);
+        
+        for(var i=1; i<=10; ++i){
+            game.load.text('stageInfo-stage1-'+i, 'assets/data/stage1-' + i + '.json');
+        }
     },
     flushLocalData: function(){
         this.score = 0;
         this.playing = false;
-        this.player_facing = 'left';
+        this.player_facing = 'down';
     },
     create: function(){
+        this.flushLocalData();
+        
+        console.log('Create Play Game');
         game.physics.startSystem(Phaser.Physics.ARCADE);
         
         var backColor = bgColors[game.rnd.between(0, bgColors.length - 1)];
@@ -69,16 +79,21 @@ playGame.prototype = {
         this.HUDLayer = game.add.group();
         this.HUD.text.score = game.add.text(0, 0, "score: " + this.score, { font: "bold 24px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "right" }, this.HUDLayer);
         this.HUD.text.score.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
+        this.HUDLayer.fixedToCamera = true;
+        
+        this.createPopupMenu();
+        
+        var showPopupButton = game.add.button(0, 0, 'button', this.showPopupMenu, this, 2, 1, 0, 0, this.HUDLayer);
+        showPopupButton.anchor.setTo(0.5);
     },
     update: function(){
         if( ! this.player ) return;
-        
-        game.world.bringToTop(this.HUDLayer);
+        if( ! this.player.body ) return;
         
         //  Reset the players velocity (movement)
         this.player.body.velocity.x = 0;
         this.player.body.velocity.y = 0;
-        this.player.bringToTop();
+        // this.player.bringToTop();
         
         if(this.playing !== true) return;
         
@@ -89,7 +104,7 @@ playGame.prototype = {
         if (this.cursors.left.isDown)
         {
             //  Move to the left
-            this.player.body.velocity.x = -150;
+            this.player.body.velocity.x = -200;
             
             this.player.animations.play('left');
             this.player_facing = 'left';
@@ -97,7 +112,7 @@ playGame.prototype = {
         else if (this.cursors.right.isDown)
         {
             //  Move to the right
-            this.player.body.velocity.x = 150;
+            this.player.body.velocity.x = 200;
     
             this.player.animations.play('right');
             this.player_facing = 'right';
@@ -105,7 +120,7 @@ playGame.prototype = {
         else if (this.cursors.up.isDown)
         {
             //  Move to the up
-            this.player.body.velocity.y = -150;
+            this.player.body.velocity.y = -200;
     
             this.player.animations.play('up');
             this.player_facing = 'up';
@@ -113,7 +128,7 @@ playGame.prototype = {
         else if (this.cursors.down.isDown)
         {
             //  Move to the down
-            this.player.body.velocity.y = 150;
+            this.player.body.velocity.y = 200;
     
             this.player.animations.play('down');
             this.player_facing = 'down';
@@ -128,6 +143,9 @@ playGame.prototype = {
         }
         
         this.updateMarker();
+        
+        game.world.bringToTop(this.HUDLayer);
+        game.world.bringToTop(this.popupMenu);
     },
     updateMarker: function(){
         var curTileX = this.tilesLayer.getTileX(this.player.body.center.x);
@@ -148,7 +166,6 @@ playGame.prototype = {
             this.marker.x = this.player.tileX * 32;
             this.marker.y = this.player.tileY * 32;
         }
-        
         this.checkDeathPosition(this.player.tileX, this.player.tileY);
     },
     checkDeathPosition: function(tileX, tileY){
@@ -162,10 +179,10 @@ playGame.prototype = {
         
         var tile = game.add.sprite(tileX * 32, tileY * 32, 'ground_sprite');
         // player.body.setSize(16, 16, 8, 20);
-        tile.animations.add('destory', [25, 50, 75, 100, 125], 15, false);
+        tile.animations.add('destroy', [25, 50, 75, 100, 125], 15, false);
         tile.animations.add('water', [26, 51], 2, true);
         game.time.events.add(Phaser.Timer.SECOND * 0.2, function(){
-            tile.animations.play('destory');
+            tile.animations.play('destroy');
             tile.animations.currentAnim.onComplete.add(function () {
                 tile.animations.play('water');
             }, this);
@@ -190,7 +207,11 @@ playGame.prototype = {
     
     
     new_map: function(name){
+        this.clear_map();
+        
+        console.log("Generate New Map (%s)", name);
         this.map = game.add.tilemap(name);
+        console.log("Generate New Map (%s) x2", name, this.map);
     
         this.map.addTilesetImage('ground_1x1');
         // 충돌이 일어나는 타일셋 프레임 범위
@@ -202,6 +223,7 @@ playGame.prototype = {
     
         this.tilesLayer = this.map.createLayer('Tile Layer');
         this.wallsLayer = this.map.createLayer('Wall Layer');
+        
         //  Scroll it
         this.wallsLayer.resizeWorld();
         
@@ -215,30 +237,58 @@ playGame.prototype = {
         this.set_player();
     },
     load_map: function(name){
-        if(game.cache.checkTilemapKey(name)) return;
+        if( game.cache.checkTextKey('stageInfo-' + name) ){
+            console.log('Load Map Data (from cache)');
+            this.load_map_download();
+            return;
+        }
         
-        game.load.text('stageInfo', 'assets/data/' + name + '.json');
+        game.load.text('stageInfo-' + name, 'assets/data/' + name + '.json');
 		game.load.start();
 		game.load.onLoadComplete.addOnce(this.load_map_download, this);
-		
-        console.log('Load Map Data...');
     },
     load_map_download: function(){
-        var jsonData = game.cache.getText('stageInfo');
+        game.load.onLoadComplete.remove(this.load_map_download);
+        
+        var jsonData = game.cache.getText('stageInfo-' + this.stageName);
         this.stageInfo = JSON.parse(jsonData);
+        console.log('Downloaded...', this.stageInfo);
+        
+        if( ! this.stageInfo ){
+            alert('게임 불러오기 실패');
+            return;
+        }
+        
+        if( game.cache.checkTilemapKey(this.stageInfo.name) ){
+            console.log('Downloaded. (from cache)');
+            this.load_map_success();
+            return;
+        }
+        
         game.load.tilemap(this.stageInfo.name, 'assets/tilemaps/maps/' + this.stageInfo.tilemap + '.json', null, Phaser.Tilemap.TILED_JSON);
 		game.load.start();
-		game.load.onLoadComplete.add(this.load_map_success, this);
+		game.load.onLoadComplete.addOnce(this.load_map_success, this);
     },
     load_map_success: function(){
         console.log('Success Load Map Data');
+        game.load.onLoadComplete.remove(this.load_map_success);
         this.new_map(this.stageInfo.name);
     },
+	clear_map: function(){
+	    console.log("Clear Map");
+	    
+	    if(this.map) this.map.destroy();
+	    
+		if(this.tilesLayer) this.tilesLayer.destroy();
+		if(this.wallsLayer) this.wallsLayer.destroy();
+
+        if(this.carrots) this.carrots.callAll("kill");
+	},
     
     set_player: function(){
         // The player and its settings
         var playerTileX = this.stageInfo.starting_point.x, playerTileY = this.stageInfo.starting_point.y;
-        this.player = game.add.sprite(32 * playerTileX + 1, 32 * playerTileY, 'rabbit');
+        this.player = game.add.sprite(32 * playerTileX + 1, 32 * playerTileY - 5, 'rabbit');
     
         //  We need to enable physics on the player
         game.physics.arcade.enable(this.player);
@@ -256,14 +306,41 @@ playGame.prototype = {
         game.camera.follow(this.player);
     },
     
+    createPopupMenu: function(){
+        this.popupMenu = game.add.group();
+        this.popupMenu.visible = false;
+        this.popupMenu.fixedToCamera = true;
+        this.popupMenu.pivot.setTo(- game.camera.width/2, - game.camera.height/2);
+        
+        game.add.text(0, 0, "test", { font: "bold 24px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "right" }, this.popupMenu);
+        
+        var restartButton = game.add.button(0, 0, 'button', this.hidePopupMenu, this, 2, 1, 0, 0, this.popupMenu);
+        restartButton.anchor.setTo(0.5);
+        
+        var backToSelectButton = game.add.button(0, 100, 'button', this.backToLevelSelect, this, 2, 1, 0, 0, this.popupMenu);
+        backToSelectButton.anchor.setTo(0.5);
+    },
+    showPopupMenu: function(){
+        this.popupMenu.visible = true;
+        this.popupMenu.pivot.setTo(- game.camera.width/2, - game.camera.height/2);
+        if(this.popupMenu.tween){
+            this.popupMenu.tween.stop();
+        }
+        console.log(this.popupMenu.pivot);
+        this.popupMenu.tween = game.add.tween(this.popupMenu.pivot).from({y: 0.0}, 2000, Phaser.Easing.Elastic.Out, true);
+    },
+    hidePopupMenu: function(){
+        if(this.popupMenu.tween) this.popupMenu.tween.stop();
+        console.log(this.popupMenu.pivot);
+        this.popupMenu.tween = game.add.tween(this.popupMenu.pivot).to({y: 200.0}, 500, Phaser.Easing.Cubic.Out, true);
+    },
     
     endGame: function(){
         // 게임 실패로 인한 종료
-        
-        var style = { font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };
+        var style = { font: "bold 72px Baloo Bhaina", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle", stroke: "#000000", strokeThickness: 5 };
     
         //  The Text is positioned at 0, 0
-        var text = game.add.text(0, 0, "You Die", style);
+        var text = game.add.text(0, 0, "You Die", style, this.HUDLayer);
         text.setTextBounds(0, 0, game.width, game.height);
         
         this.player.animations.play("dead");
@@ -285,9 +362,17 @@ playGame.prototype = {
             this.playing = false;
         }, this);
         
-        var style = { font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };
+        var style = { font: "bold 72px Baloo Bhaina", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle", stroke: "#000000", strokeThickness: 5 };
     
-        var text = game.add.text(0, 0, "Game Clear!", style);
+        var text = game.add.text(0, 0, "Game Clear!", style, this.HUDLayer);
         text.setTextBounds(0, 0, game.width, game.height);
+    },
+    
+    backToLevelSelect: function(){
+        game.state.start("LevelSelect");
+    },
+    
+    render: function(){
+        game.debug.cameraInfo(game.camera, 32, 32);
     }
 }
