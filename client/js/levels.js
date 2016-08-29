@@ -64,6 +64,10 @@ levelSelect.prototype = {
         title.setShadow(5, 5, 'rgba(0,0,0,0.5)', 5);
 
         this.btnStart = new LabelButton(this.game, 100, 50, "button", "Back to Intro", this.backToIntro, this, 1, 0, 2); // button frames 1=over, 0=off, 2=down
+        
+        var stageScoreData = {};
+        var _stageScoreData = localStorage.getItem('stageScore');
+        if(_stageScoreData) stageScoreData = JSON.parse(_stageScoreData);
 
         var titlePaddingBottom = (1.5 * titleOffset + title.height);
         this.stagesButton = game.add.group();
@@ -75,7 +79,16 @@ levelSelect.prototype = {
             var row = i % 5, col = Math.floor(i / 5);
             var x = buttonSize * row + (row > 0 ? buttonMargin * row : 0) - (buttonSize * 2 + buttonMargin * 2);
             var y = buttonSize * col + (col > 0 ? buttonMargin * col : 0) - (buttonSize * 1 + buttonMargin * 0.5);
-            var button = game.add.button(x, y, 'button', this.startGame, this, 8, 8, 8);
+            
+            var buttonImage = 8, buttonOnEvent = this.startGame;
+            if(stageScoreData){
+                var starData = stageScoreData['stage1-'+(i+1)];
+                if(starData){
+                    var stars = starData.stars;
+                    if(stars !== null) buttonImage = 9 + stars;
+                }
+            }
+            var button = game.add.button(x, y, 'button',  buttonOnEvent, this, buttonImage, buttonImage, buttonImage);
             button.scale.setTo(buttonScaleSize);
             button.anchor.setTo(0.5);
             button.stageName = 'stage1-' + (i+1);

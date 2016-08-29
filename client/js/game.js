@@ -14,8 +14,9 @@ window.onload = function() {
     game.state.add("GameIntro", gameIntro);
     game.state.add("LevelSelect", levelSelect);
     
-    // game.state.start("PlayGame", true, false, 'stage1-10');
-    game.state.start("GameIntro");
+    // game.state.start("PlayGame", true, false, 'stage1-1');
+    // game.state.start("GameIntro");
+    game.state.start("LevelSelect");
 }
 
 var playGame = function(game){};
@@ -44,6 +45,7 @@ playGame.prototype = {
         game.load.spritesheet('ground_sprite', 'assets/tilemaps/tiles/ground_1x1.png', 32, 32);
         
         game.load.spritesheet('button', 'assets/buttons/button_sprite_sheet.png', 193, 71);
+        game.load.image('stageStar', 'assets/star.png', 64, 64);
         
         for(var i=1; i<=10; ++i){
             game.load.text('stageInfo-stage1-'+i, 'assets/data/stage1-' + i + '.json');
@@ -83,7 +85,7 @@ playGame.prototype = {
         
         this.createPopupMenu();
         
-        var showPopupButton = game.add.button(0, 0, 'button', this.showPopupMenu, this, 2, 1, 0, 0, this.HUDLayer);
+        var showPopupButton = game.add.button(game.camera.width - 100, 50, 'button', this.togglePopupMenu, this, 2, 1, 0, 0, this.HUDLayer);
         showPopupButton.anchor.setTo(0.5);
     },
     update: function(){
@@ -188,6 +190,9 @@ playGame.prototype = {
             }, this);
         }, this);
         
+        // 생성된 z-index가 player보다 상위이므로 상태를 swap
+        game.world.swap(tile, this.player);
+        
         this.updateScore(+10, true);
     },
     collectCarrots: function(player, carrot){
@@ -209,9 +214,7 @@ playGame.prototype = {
     new_map: function(name){
         this.clear_map();
         
-        console.log("Generate New Map (%s)", name);
         this.map = game.add.tilemap(name);
-        console.log("Generate New Map (%s) x2", name, this.map);
     
         this.map.addTilesetImage('ground_1x1');
         // 충돌이 일어나는 타일셋 프레임 범위
@@ -308,31 +311,47 @@ playGame.prototype = {
     
     createPopupMenu: function(){
         this.popupMenu = game.add.group();
-        this.popupMenu.visible = false;
+        this.popupMenu.visible = true;
         this.popupMenu.fixedToCamera = true;
-        this.popupMenu.pivot.setTo(- game.camera.width/2, - game.camera.height/2);
-        
-        game.add.text(0, 0, "test", { font: "bold 24px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "right" }, this.popupMenu);
+        this.popupMenu.enable = false;
+        this.popupMenu.pivot.setTo(- game.camera.width/2, game.camera.height/2);
         
         var restartButton = game.add.button(0, 0, 'button', this.hidePopupMenu, this, 2, 1, 0, 0, this.popupMenu);
         restartButton.anchor.setTo(0.5);
         
         var backToSelectButton = game.add.button(0, 100, 'button', this.backToLevelSelect, this, 2, 1, 0, 0, this.popupMenu);
         backToSelectButton.anchor.setTo(0.5);
+        
+        this.popupWin = game.add.group();
+        
+    },
+    togglePopupMenu: function(){
+        if(this.popupMenu.showing){
+            this.hidePopupMenu();
+        } else {
+            this.showPopupMenu();
+        }
+        this.popupMenu.showing = !this.popupMenu.showing;
     },
     showPopupMenu: function(){
-        this.popupMenu.visible = true;
-        this.popupMenu.pivot.setTo(- game.camera.width/2, - game.camera.height/2);
-        if(this.popupMenu.tween){
-            this.popupMenu.tween.stop();
-        }
-        console.log(this.popupMenu.pivot);
-        this.popupMenu.tween = game.add.tween(this.popupMenu.pivot).from({y: 0.0}, 2000, Phaser.Easing.Elastic.Out, true);
+        this.playing = false;
+        if(this.popupMenu.tween) this.popupMenu.tween.stop();
+        this.popupMenu.tween = game.add.tween(this.popupMenu.pivot).to({y: - game.camera.height/2}, 1500, Phaser.Easing.Elastic.Out, true);
     },
     hidePopupMenu: function(){
+        this.playing = true;
         if(this.popupMenu.tween) this.popupMenu.tween.stop();
-        console.log(this.popupMenu.pivot);
-        this.popupMenu.tween = game.add.tween(this.popupMenu.pivot).to({y: 200.0}, 500, Phaser.Easing.Cubic.Out, true);
+        this.popupMenu.tween = game.add.tween(this.popupMenu.pivot).to({y: game.camera.height/2}, 300, Phaser.Easing.Cubic.Out, true);
+    },
+    showPopupWin: function(){
+        
+    },
+    hidePopupWin: function(){
+        
+    },
+    
+    showResult: function(){
+        this.backToLevelSelect();
     },
     
     endGame: function(){
@@ -357,15 +376,78 @@ playGame.prototype = {
     },
     clearGame: function(){
         // 스테이지 클리어
+        this.playing = false;
         
-        game.time.events.add(Phaser.Timer.SECOND * 0.1, function(){
-            this.playing = false;
-        }, this);
+        // game.time.events.add(Phaser.Timer.SECOND * 1, showResult, this);
         
         var style = { font: "bold 72px Baloo Bhaina", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle", stroke: "#000000", strokeThickness: 5 };
     
-        var text = game.add.text(0, 0, "Game Clear!", style, this.HUDLayer);
-        text.setTextBounds(0, 0, game.width, game.height);
+        var screenCenterX = game.camera.width / 2, screenCenterY = game.camera.height / 2;
+        var text = game.add.text(screenCenterX, screenCenterY - 120, "Game Clear!", style, this.HUDLayer);
+        text.anchor.setTo(0.5, 0.5);
+        var tween = game.add.tween(text.scale).to({x: 1.1, y: 1.1}, 500, Phaser.Easing.Linear.Out, true, 0, -1);
+        tween.yoyo(true, 250);
+        
+        var localScore = this.saveScore(this.score);
+        
+        // 스코어 보여주고 2초 뒤 레벨 선택창으로 이동
+        style.font = '52px Baloo Bhaina';
+        style.strokeThickness = 2;
+        var scoreText = game.add.text(screenCenterX, screenCenterY + 120, "Score: " + this.score + "\nHighscore: " + localScore.highscore, style, this.HUDLayer);
+        scoreText.anchor.setTo(0.5, 0.5);
+        game.time.events.add(Phaser.Timer.SECOND * 5, function(){
+            game.state.start("LevelSelect");
+        });
+        
+        var curStars = this.getStars(this.score, this.stageInfo);
+        var starPos = {
+            1: [0],
+            2: [-32, +32],
+            3: [-64, 0, +64]
+        };
+        for(var i=0; i < curStars; ++i){
+            var star = game.add.sprite(screenCenterX + starPos[curStars][i] + (i == 0 ? 0 : 32 * i), screenCenterY, 'stageStar', 0, this.HUDLayer);
+            star.anchor.setTo(0.5, 0.5);
+            star.tween = game.add.tween(star.scale).to({x: 0.0}, 500, Phaser.Easing.Circular.InOut, true, 100 * i /* delay */, 1 /*loop*/, true /*yoyo*/);
+        }
+    },
+    
+    saveScore: function(score){
+        var s = this.loadLocalStageData(), info = this.stageInfo;
+        
+        // 스테이지 정보가 없으면 초기화
+        if( ! s[info.name] ){
+            s[info.name] = {
+                highscore: 0,
+                stars: 1
+            };
+        }
+        
+        // 최고 기록보다 높은 경우에만 갱신
+        if(s[info.name].highscore < score){
+            s[info.name].highscore = score;
+            s[info.name].stars = this.getStars(score, info);
+        }
+        
+        this.saveLocalStageData(s);
+        
+        return s[info.name];
+    },
+    getStars: function(score, info){
+        var stars = 1;
+        var star2 = info.star_bound[0], star3 = info.star_bound[1];
+        if(star2 <= score) stars = 2;
+        if(star3 <= score) stars = 3;
+        return stars;
+    },
+    
+    loadLocalStageData: function(){
+        var _s = localStorage.getItem('stageScore');
+        if( ! _s ) _s = "{}";
+        return JSON.parse(_s);
+    },
+    saveLocalStageData: function(s){
+        localStorage.setItem('stageScore', JSON.stringify(s));
     },
     
     backToLevelSelect: function(){

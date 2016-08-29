@@ -4,5 +4,8 @@
     "starting_point": {
         "x": 18,
         "y": 18
-    }
+    },
+    "star_bound": [
+        280, 300
+    ]
 }
