@@ -14,7 +14,7 @@ window.onload = function() {
     game.state.add("GameIntro", gameIntro);
     game.state.add("LevelSelect", levelSelect);
     
-    // game.state.start("PlayGame", true, false, 'stage1-1');
+    // game.state.start("PlayGame", true, false, 'stage2-1');
     // game.state.start("GameIntro");
     game.state.start("LevelSelect");
 }
@@ -43,6 +43,7 @@ playGame.prototype = {
         game.load.image('carrot_32x32', 'assets/carrot_32x32.png');
         game.load.spritesheet('rabbit', 'assets/rabbit.png', 32, 32);
         game.load.spritesheet('ground_sprite', 'assets/tilemaps/tiles/ground_1x1.png', 32, 32);
+        game.load.spritesheet('box_32x32', 'assets/sprites/box_32x32.png', 32, 32);
         
         game.load.spritesheet('button', 'assets/buttons/button_sprite_sheet.png', 193, 71);
         game.load.image('stageStar', 'assets/star.png', 64, 64);
@@ -50,6 +51,7 @@ playGame.prototype = {
         for(var i=1; i<=10; ++i){
             game.load.text('stageInfo-stage1-'+i, 'assets/data/stage1-' + i + '.json');
         }
+        game.load.text('stageInfo-stage2-1', 'assets/data/stage2-1.json');
     },
     flushLocalData: function(){
         this.score = 0;
@@ -95,13 +97,14 @@ playGame.prototype = {
         //  Reset the players velocity (movement)
         this.player.body.velocity.x = 0;
         this.player.body.velocity.y = 0;
-        // this.player.bringToTop();
         
         if(this.playing !== true) return;
         
         //  Collide the player and the stars with the platforms
         game.physics.arcade.collide(this.player, this.wallsLayer);
         game.physics.arcade.overlap(this.player, this.carrots, this.collectCarrots, null, this);
+        game.physics.arcade.collide(this.player, this.boxes, this.pushBoxes, null, this);
+        game.physics.arcade.collide(this.boxes, this.boxes, this.pushBoxes, null, this);
     
         if (this.cursors.left.isDown)
         {
@@ -190,6 +193,8 @@ playGame.prototype = {
             }, this);
         }, this);
         
+        // Issue: tile.animation 이후 tile(sprite)는 destroy되게 해야함.
+        //        tileLayer와 똑같은 위치에 sprite가 있어서 z-index가 위에 있는 착시임.
         // 생성된 z-index가 player보다 상위이므로 상태를 swap
         game.world.swap(tile, this.player);
         
@@ -203,6 +208,23 @@ playGame.prototype = {
         // 당근을 모두 먹었으면 게임 성공
         if(this.carrots.children.length === 0){
             this.clearGame();
+        }
+    },
+    pushBoxes: function(sprite1, sprite2){
+        this.checkBoxForTilePos(sprite1);
+        this.checkBoxForTilePos(sprite2);
+    },
+    checkBoxForTilePos: function(box){
+        if(box.key == 'rabbit'){
+            return;
+        }
+        var x = box.centerX;
+        var y = box.centerY;
+        var tileX = this.tilesLayer.getTileX(x), tileY = this.tilesLayer.getTileY(y);
+        var currentTile = this.map.getTile(tileX, tileY, this.tilesLayer);
+        if(this.deathTile.indexOf(currentTile.index) !== -1){
+            this.map.putTile(57, tileX, tileY, this.tilesLayer);
+            box.kill();
         }
     },
     updateScore: function(getScore, updateDisplay){
@@ -236,6 +258,10 @@ playGame.prototype = {
     
         //  And now we convert all of the Tiled objects with an ID of 34 into sprites within the coins group
         this.map.createFromObjects('Carrots', 151, 'carrot_32x32', 0, true, false, this.carrots);
+        
+        this.boxes = game.add.group();
+        this.boxes.enableBody = true;
+        this.map.createFromObjects('Boxes', 152, 'box_32x32', 0, true, false, this.boxes);
         
         this.set_player();
     },
@@ -410,6 +436,18 @@ playGame.prototype = {
             star.anchor.setTo(0.5, 0.5);
             star.tween = game.add.tween(star.scale).to({x: 0.0}, 500, Phaser.Easing.Circular.InOut, true, 100 * i /* delay */, 1 /*loop*/, true /*yoyo*/);
         }
+        
+        this.openNextStage();
+    },
+    openNextStage: function(){
+        var s = this.loadLocalStageData();
+        // 다음 스테이지가 DB에 있으면 종료
+        if( s[this.stageInfo.next] ) return;
+        s[this.stageInfo.next] = {
+            highscore: 0,
+            unlocked: true
+        };
+        this.saveLocalStageData(s);
     },
     
     saveScore: function(score){
@@ -419,7 +457,8 @@ playGame.prototype = {
         if( ! s[info.name] ){
             s[info.name] = {
                 highscore: 0,
-                stars: 1
+                stars: 1,
+                unlocked: true
             };
         }
         
@@ -455,6 +494,6 @@ playGame.prototype = {
     },
     
     render: function(){
-        game.debug.cameraInfo(game.camera, 32, 32);
+        
     }
 }
