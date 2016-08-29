@@ -37,9 +37,20 @@ LabelButton.prototype.setLabel = function( label ) {
 
 var levelSelect = function(game){};
 levelSelect.prototype = {
-
+    
+    totalPage: 2,
+    
     init: function(){
-        
+        if( ! localStorage.getItem('stageScore') ){
+            var initialStage = {
+                "stage1-1": {
+                    highscore: 0,
+                    stars: 0,
+                    unlocked: true
+                }
+            };
+            localStorage.setItem('stageScore', JSON.stringify(initialStage));
+        }
     },
     preload: function(){
         game.load.image('background', 'assets/images/introBg.jpg');
@@ -69,43 +80,58 @@ levelSelect.prototype = {
         var _stageScoreData = localStorage.getItem('stageScore');
         if(_stageScoreData) stageScoreData = JSON.parse(_stageScoreData);
 
+        this.currentPage = 0;
+
         var titlePaddingBottom = (1.5 * titleOffset + title.height);
         this.stagesButton = game.add.group();
         this.stagesButton.position.setTo(game.world.centerX, (game.world.height - titlePaddingBottom) / 2 + titlePaddingBottom);
         this.stagesButton.inputEnabled = false;
         var buttonSize = 120, buttonScaleSize = buttonSize / 64;
         var buttonMargin = 40;
-        for(var i=0; i < 10; ++i){
-            var row = i % 5, col = Math.floor(i / 5);
-            var x = buttonSize * row + (row > 0 ? buttonMargin * row : 0) - (buttonSize * 2 + buttonMargin * 2);
-            var y = buttonSize * col + (col > 0 ? buttonMargin * col : 0) - (buttonSize * 1 + buttonMargin * 0.5);
-            
-            var buttonImage = 8, buttonOnEvent = this.startGame;
-            if(stageScoreData){
-                var starData = stageScoreData['stage1-'+(i+1)];
-                if(starData){
-                    var stars = starData.stars;
-                    if(stars !== null) buttonImage = 9 + stars;
+        for(var stagePage = 1; stagePage <= this.totalPage; ++stagePage){
+            for(var i=0; i < 10; ++i){
+                var curStage = 'stage' + stagePage +'-' + (i+1);
+                var row = i % 5, col = Math.floor(i / 5);
+                var x = buttonSize * row + (row > 0 ? buttonMargin * row : 0) - (buttonSize * 2 + buttonMargin * 2);
+                var y = buttonSize * col + (col > 0 ? buttonMargin * col : 0) - (buttonSize * 1 + buttonMargin * 0.5);
+                
+                x += game.camera.width * (stagePage - 1);
+                
+                var buttonImageIdle = 8 * stagePage;
+                var buttonImage = buttonImageIdle, buttonOnEvent = null;
+                if(stageScoreData){
+                    var stageData = stageScoreData[curStage];
+                    if(stageData && stageData.unlocked === true){
+                        var stars = stageData.stars;
+                        if(stars > 0) buttonImage = buttonImageIdle + 1 + stars;
+                        else buttonImage = buttonImageIdle + 1;
+                        buttonOnEvent = this.startGame;
+                    }
                 }
+                var button = game.add.button(x, y, 'button',  buttonOnEvent, this, buttonImage, buttonImage, buttonImage);
+                button.scale.setTo(buttonScaleSize);
+                button.anchor.setTo(0.5);
+                button.stageName = curStage;
+                button.alpha = 0.75;
+                button.onInputOver.add(function(btn){
+                    btn.alpha = 1.0;
+                    if(btn.tween) btn.tween.stop();
+                    btn.tween = game.add.tween(btn.scale).to({x: buttonScaleSize * 1.2, y: buttonScaleSize * 1.2}, 1000, Phaser.Easing.Elastic.Out, true);
+                }, this);
+                button.onInputOut.add(function(btn){
+                    btn.alpha = 0.75;
+                    if(btn.tween) btn.tween.stop();
+                    btn.tween = game.add.tween(btn.scale).to({x: buttonScaleSize, y: buttonScaleSize}, 600, Phaser.Easing.Bounce.Out, true);
+                }, this);
+                
+                this.stagesButton.add(button);
             }
-            var button = game.add.button(x, y, 'button',  buttonOnEvent, this, buttonImage, buttonImage, buttonImage);
-            button.scale.setTo(buttonScaleSize);
-            button.anchor.setTo(0.5);
-            button.stageName = 'stage1-' + (i+1);
-            button.alpha = 0.75;
-            button.onInputOver.add(function(btn){
-                btn.alpha = 1.0;
-                if(btn.tween) btn.tween.stop();
-                btn.tween = game.add.tween(btn.scale).to({x: buttonScaleSize * 1.2, y: buttonScaleSize * 1.2}, 1000, Phaser.Easing.Elastic.Out, true);
-            }, this);
-            button.onInputOut.add(function(btn){
-                btn.alpha = 0.75;
-                if(btn.tween) btn.tween.stop();
-                btn.tween = game.add.tween(btn.scale).to({x: buttonScaleSize, y: buttonScaleSize}, 600, Phaser.Easing.Bounce.Out, true);
-            }, this);
-            
-            this.stagesButton.add(button);
         }
+        
+        var prevBtn = game.add.button(0, game.camera.height / 2, 'button',  this.swipePrevPage, this, 17, 18, 19);
+        prevBtn.anchor.setTo(0.0, 0.5);
+        var nextBtn = game.add.button(game.camera.width, game.camera.height / 2, 'button',  this.swipeNextPage, this, 17, 18, 19);
+        nextBtn.anchor.setTo(1.0, 0.5);
     },
     update: function(){
         this.background.tilePosition.x += 0.1;
@@ -118,5 +144,19 @@ levelSelect.prototype = {
     startGame: function(button){
         console.log('play ' + button.stageName);
         game.state.start("PlayGame", true, false, button.stageName);
-    }
+    },
+    
+    swipeNextPage: function(){
+        if(this.currentPage+1 < this.totalPage) this.changePage(+1);
+    },
+    swipePrevPage: function(){
+        if(this.currentPage-1 >= 0) this.changePage(-1);
+    },
+    changePage: function(page){
+        this.currentPage += page;
+        var nextX = this.currentPage * - game.camera.width + (game.camera.width / 2);
+        var tween = game.add.tween(this.stagesButton).to({
+            x: nextX
+        }, 300, Phaser.Easing.Cubic.Out, true);
+     }
 }
