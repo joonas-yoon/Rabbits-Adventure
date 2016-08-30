@@ -54,6 +54,7 @@ levelSelect.prototype = {
     },
     preload: function(){
         game.load.image('background', 'assets/images/introBg.jpg');
+        game.load.image('arrow', 'assets/arrow.png');
         game.load.spritesheet('button', 'assets/sprites/level_64x64.png', 64, 64);
     },
     create: function(){
@@ -128,10 +129,12 @@ levelSelect.prototype = {
             }
         }
         
-        var prevBtn = game.add.button(0, game.camera.height / 2, 'button',  this.swipePrevPage, this, 17, 18, 19);
+        var prevBtn = game.add.button(0, game.camera.height / 2, 'arrow',  this.swipePrevPage, this, 17, 18, 19);
         prevBtn.anchor.setTo(0.0, 0.5);
-        var nextBtn = game.add.button(game.camera.width, game.camera.height / 2, 'button',  this.swipeNextPage, this, 17, 18, 19);
-        nextBtn.anchor.setTo(1.0, 0.5);
+        prevBtn.scale.setTo(0.4, 0.5);
+        var nextBtn = game.add.button(game.camera.width, game.camera.height / 2, 'arrow',  this.swipeNextPage, this, 17, 18, 19);
+        nextBtn.anchor.setTo(0.0, 0.5);
+        nextBtn.scale.setTo(-0.4, 0.5);
     },
     update: function(){
         this.background.tilePosition.x += 0.1;

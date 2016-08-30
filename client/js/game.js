@@ -104,6 +104,7 @@ playGame.prototype = {
         game.physics.arcade.collide(this.player, this.wallsLayer);
         game.physics.arcade.overlap(this.player, this.carrots, this.collectCarrots, null, this);
         game.physics.arcade.collide(this.player, this.boxes, this.pushBoxes, null, this);
+        game.physics.arcade.collide(this.boxes, this.wallsLayer);
         game.physics.arcade.collide(this.boxes, this.boxes, this.pushBoxes, null, this);
     
         if (this.cursors.left.isDown)
@@ -153,11 +154,10 @@ playGame.prototype = {
         game.world.bringToTop(this.popupMenu);
     },
     updateMarker: function(){
-        var curTileX = this.tilesLayer.getTileX(this.player.body.center.x);
-        var curTileY = this.tilesLayer.getTileY(this.player.body.center.y);
+        var curTile = this.player.getTileXY(this.tilesLayer);
         
         // 플레이어가 다른 타일로 이동함
-        if( this.player.tileX !== curTileX || this.player.tileY !== curTileY )
+        if( this.player.tileX !== curTile.x || this.player.tileY !== curTile.y )
         {
             // 이전에 있던 타일을 삭제, 닿으면 죽게 바꿈
             if( this.player.tileX != null && this.player.tileY != null ){
@@ -165,8 +165,8 @@ playGame.prototype = {
             }
             
             // 플레이어의 위치를 갱신
-            this.player.tileX = curTileX;
-            this.player.tileY = curTileY;
+            this.player.tileX = curTile.x;
+            this.player.tileY = curTile.y;
             
             this.marker.x = this.player.tileX * 32;
             this.marker.y = this.player.tileY * 32;
@@ -331,6 +331,14 @@ playGame.prototype = {
         this.player.animations.add('right', [25, 24, 25, 26], 10, true);
         this.player.animations.add('up', [37, 36, 37, 38], 10, true);
         this.player.animations.add('dead', [1, 13, 25, 37], 10, true);
+        
+        this.player.getTileXY = function(tilemap){
+            var curTileX = tilemap.getTileX(this.body.center.x);
+            var curTileY = tilemap.getTileY(this.body.center.y);
+            return {
+                x: curTileX, y: curTileY
+            };
+        };
         
         game.camera.follow(this.player);
     },

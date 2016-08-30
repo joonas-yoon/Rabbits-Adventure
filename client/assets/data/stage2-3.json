@@ -1,0 +1,12 @@
+{
+    "name": "stage2-3",
+    "tilemap": "stage2-3",
+    "starting_point": {
+        "x": 8,
+        "y": 27
+    },
+    "star_bound": [
+        500, 660
+    ],
+    "next": "stage2-4"
+}
