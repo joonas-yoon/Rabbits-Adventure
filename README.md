@@ -1,23 +1,22 @@
 
-     ,-----.,--.                  ,--. ,---.   ,--.,------.  ,------.
-    '  .--./|  | ,---. ,--.,--. ,-|  || o   \  |  ||  .-.  \ |  .---'
-    |  |    |  || .-. ||  ||  |' .-. |`..'  |  |  ||  |  \  :|  `--, 
-    '  '--'\|  |' '-' ''  ''  '\ `-' | .'  /   |  ||  '--'  /|  `---.
-     `-----'`--' `---'  `----'  `---'  `--'    `--'`-------' `------'
-    ----------------------------------------------------------------- 
+## Rabbit's Adventure
 
+```
+Notice: 개발을 도와주세요.
+```
+---
 
-Welcome to your Node.js project on Cloud9 IDE!
+### Updates
 
-This chat example showcases how to use `socket.io` with a static `express` server.
+- v0.1.2 : LocalStorage를 저장소로 한 점수 저장
+- v0.1.1 : Stage 1 추가
+- v0.1.0 : 사용자 인터페이스 생성
 
-## Running the server
+---
 
-1) Open `server.js` and start the app by clicking on the "Run" button in the top menu.
+### Powered by
 
-2) Alternatively you can launch the app from the Terminal:
-
-    $ node server.js
-
-Once the server is running, open the project in the shape of 'https://projectname-username.c9.io/'. As you enter your name, watch the Users list (on the left) update. Once you press Enter or Send, the message is shared with all connected clients.
-
+- HTML5
+- Phaser v2.6.1
+- WebGL
+- Node.js
