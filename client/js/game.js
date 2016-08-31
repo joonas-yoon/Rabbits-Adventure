@@ -14,9 +14,9 @@ window.onload = function() {
     game.state.add("GameIntro", gameIntro);
     game.state.add("LevelSelect", levelSelect);
     
-    // game.state.start("PlayGame", true, false, 'stage2-1');
+    game.state.start("PlayGame", true, false, 'stage2-7');
     // game.state.start("GameIntro");
-    game.state.start("LevelSelect");
+    // game.state.start("LevelSelect");
 }
 
 var playGame = function(game){};
@@ -94,10 +94,6 @@ playGame.prototype = {
         if( ! this.player ) return;
         if( ! this.player.body ) return;
         
-        //  Reset the players velocity (movement)
-        this.player.body.velocity.x = 0;
-        this.player.body.velocity.y = 0;
-        
         if(this.playing !== true) return;
         
         //  Collide the player and the stars with the platforms
@@ -110,7 +106,7 @@ playGame.prototype = {
         if (this.cursors.left.isDown)
         {
             //  Move to the left
-            this.player.body.velocity.x = -200;
+            this.movePlayer(-200, 0, this.tilesLayer);
             
             this.player.animations.play('left');
             this.player_facing = 'left';
@@ -118,7 +114,7 @@ playGame.prototype = {
         else if (this.cursors.right.isDown)
         {
             //  Move to the right
-            this.player.body.velocity.x = 200;
+            this.movePlayer(200, 0, this.tilesLayer);
     
             this.player.animations.play('right');
             this.player_facing = 'right';
@@ -126,7 +122,7 @@ playGame.prototype = {
         else if (this.cursors.up.isDown)
         {
             //  Move to the up
-            this.player.body.velocity.y = -200;
+            this.movePlayer(0, -200, this.tilesLayer);
     
             this.player.animations.play('up');
             this.player_facing = 'up';
@@ -134,12 +130,14 @@ playGame.prototype = {
         else if (this.cursors.down.isDown)
         {
             //  Move to the down
-            this.player.body.velocity.y = 200;
+             this.movePlayer(0, 200, this.tilesLayer);
     
             this.player.animations.play('down');
             this.player_facing = 'down';
         }
         else {
+            this.movePlayer(0, 0, this.tilesLayer);
+        
             //  Stand still
             this.player.animations.stop();
             
@@ -263,7 +261,7 @@ playGame.prototype = {
         this.boxes.enableBody = true;
         this.map.createFromObjects('Boxes', 152, 'box_32x32', 0, true, false, this.boxes);
         
-        this.set_player();
+        this.setPlayer();
     },
     load_map: function(name){
         if( game.cache.checkTextKey('stageInfo-' + name) ){
@@ -314,10 +312,12 @@ playGame.prototype = {
         if(this.carrots) this.carrots.callAll("kill");
 	},
     
-    set_player: function(){
+    setPlayer: function(){
         // The player and its settings
         var playerTileX = this.stageInfo.starting_point.x, playerTileY = this.stageInfo.starting_point.y;
         this.player = game.add.sprite(32 * playerTileX + 1, 32 * playerTileY - 5, 'rabbit');
+        this.player.map = this.map;
+        this.player.layer = this.tilesLayer;
     
         //  We need to enable physics on the player
         game.physics.arcade.enable(this.player);
@@ -341,6 +341,29 @@ playGame.prototype = {
         };
         
         game.camera.follow(this.player);
+    },
+    movePlayer: function(deltaX, deltaY, layer){
+        var curTilePos = this.player.getTileXY(layer);
+        var curTile = this.map.getTile(curTilePos.x, curTilePos.y, layer);
+        
+        // 마찰계수(friction)이 없다면 기본은 1.0
+        if( curTile.properties.hasOwnProperty('friction') )
+        {
+            var currVelocity = this.player.body.velocity;
+            var friction = curTile.properties.friction / 2;
+            
+            this.player.body.acceleration.x = deltaX / friction;
+            this.player.body.acceleration.y = deltaY / friction;
+            
+            console.log(this.player.body.acceleration, this.player.body.velocity);
+        }
+        else
+        {
+            this.player.body.acceleration.set(0);
+            
+            this.player.body.velocity.x = deltaX;
+            this.player.body.velocity.y = deltaY;
+        }
     },
     
     createPopupMenu: function(){
